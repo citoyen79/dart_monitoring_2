@@ -12,4 +12,4 @@ jobs:
     steps:
       - name: Trigger Vercel Cron
         run: |
-          curl -X GET "${{ secrets.VERCEL_DOMAIN }}/api/cron"
+          curl --fail -X GET "${{ secrets.VERCEL_DOMAIN }}/api/cron"

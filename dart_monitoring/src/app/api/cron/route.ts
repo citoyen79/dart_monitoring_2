@@ -58,10 +58,11 @@ export async function GET(request: Request) {
         const { data: keywords } = await supabase.from('keywords').select('keyword');
         const keywordList = keywords ? keywords.map(k => k.keyword) : [];
 
-        const today = new Date();
-        // Use Korea Time (UTC+9) for DART
-        today.setHours(today.getHours() + 9);
-        const bgnde = today.toISOString().split('T')[0].replace(/-/g, '');
+        // Use Korea Time (Asia/Seoul) for DART date — reliable across day boundaries
+        const bgnde = new Date().toLocaleDateString('ko-KR', {
+            timeZone: 'Asia/Seoul',
+            year: 'numeric', month: '2-digit', day: '2-digit'
+        }).replace(/\./g, '').replace(/ /g, '');
 
         let newAlertsCount = 0;
         const companyMap = new Map(companies.map(c => [c.corp_code, c.corp_name]));
@@ -95,27 +96,32 @@ export async function GET(request: Request) {
                 const isExcluded = keywordList.some(kw => reportNm.includes(kw));
                 if (isExcluded) continue;
 
+                // .maybeSingle() returns null (not an error) when 0 rows found
                 const { data: existing } = await supabase
                     .from('announcements')
                     .select('id')
                     .eq('rcept_no', rceptNo)
-                    .single();
+                    .maybeSingle();
 
                 if (existing) continue;
 
                 const link = `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${rceptNo}`;
                 const message = `🚨 <b>[새로운 주요 공시 알림]</b> 🚨\n\n🏢 <b>기업:</b> ${corpName}\n📄 <b>건명:</b> ${reportNm}\n\n🔗 <a href="${link}">자세히 보기 (모바일 터치)</a>`;
 
-                const success = await sendTelegramMessage(message);
+                // Insert to Supabase first to prevent duplicate alerts on Telegram retry
+                const { error: insertErr } = await supabase.from('announcements').insert([{
+                    rcept_no: rceptNo,
+                    corp_code: corpCode,
+                    corp_name: corpName,
+                    report_nm: reportNm,
+                    sent_at: new Date().toISOString()
+                }]);
 
-                if (success) {
-                    await supabase.from('announcements').insert([{
-                        rcept_no: rceptNo,
-                        corp_code: corpCode,
-                        corp_name: corpName,
-                        report_nm: reportNm
-                    }]);
+                if (!insertErr) {
+                    await sendTelegramMessage(message);
                     newAlertsCount++;
+                } else {
+                    console.error(`Failed to insert announcement ${rceptNo}:`, insertErr);
                 }
             }
 
