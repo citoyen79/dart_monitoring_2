@@ -73,6 +73,11 @@ export async function GET(request: Request) {
         do {
             const dartUrl = `https://opendart.fss.or.kr/api/list.json?crtfc_key=${DART_API_KEY}&bgn_de=${bgnde}&end_de=${bgnde}&page_no=${pageNo}&page_count=100`;
             const res = await fetch(dartUrl, { cache: 'no-store' });
+            if (!res.ok) {
+                console.error(`DART API HTTP error: ${res.status} on page ${pageNo}`);
+                pageNo++;
+                continue;
+            }
             const dartData = await res.json();
 
             if (dartData.status !== "000" && dartData.status !== "013") {

@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Read(//d/Projects/26.03.15_Dart_Dash2/**)",
+      "Bash(gh run:*)",
+      "Bash(where gh:*)",
+      "Bash(curl:*)"
     ]
   }
 }
